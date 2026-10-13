@@ -1073,11 +1073,35 @@
       cursor: pointer;
     }
 
+    .report-scope-field legend:not(.sr-only) {
+      font-weight: 600;
+      font-size: 0.85rem;
+      margin-bottom: 0.35rem;
+      padding: 0;
+    }
+
     .report-modal-actions {
       display: flex;
       flex-wrap: wrap;
       gap: 0.5rem;
       margin-top: 1rem;
+    }
+
+    .report-copy-status {
+      width: 100%;
+      flex: 1 1 100%;
+      margin: 0.35rem 0 0;
+      font-size: 0.85rem;
+      line-height: 1.45;
+      color: var(--muted);
+    }
+
+    .report-copy-status.is-ok {
+      color: var(--done);
+    }
+
+    .report-copy-status.is-error {
+      color: var(--rh-red-60);
     }
 
     .signoff-form-grid {
@@ -1523,12 +1547,19 @@
           <label><input type="radio" name="reportScope" value="active" checked /> <span id="reportScopeActiveLabel">This tab</span></label>
           <label><input type="radio" name="reportScope" value="all" /> All workstreams</label>
         </fieldset>
+        <fieldset class="report-scope-field" id="reportItemFilterField">
+          <legend>Items to include</legend>
+          <label><input type="checkbox" name="reportItemFilter" value="completed" /> Only show completed</label>
+          <label><input type="checkbox" name="reportItemFilter" value="incomplete" checked /> Only show incomplete</label>
+          <label><input type="checkbox" name="reportItemFilter" value="all" /> Send everything</label>
+        </fieldset>
         <button type="button" class="primary" id="btnReportPreview">Preview report</button>
         <div id="reportPreview" class="report-preview-frame" hidden></div>
         <div class="report-modal-actions" id="reportModalActions" hidden>
           <button type="button" id="btnReportCopy">Copy HTML</button>
           <button type="button" id="btnReportDownload">Download HTML</button>
           <button type="button" id="btnReportClose">Close</button>
+          <p id="reportCopyStatus" class="report-copy-status" hidden role="status" aria-live="polite"></p>
         </div>
       </div>
     </div>
@@ -3379,11 +3410,34 @@
       return CHART_STATUS_LABELS[cat];
     }
 
-    function reportIncludeRow(sec, index, row) {
-      return !isRowMarkedComplete(sec, index, row);
+    function selectedReportItemFilter() {
+      const picked = document.querySelector('input[name="reportItemFilter"]:checked');
+      return picked ? picked.value : "incomplete";
     }
 
-    function buildReportRowGroups(sec) {
+    function reportIncludeRow(sec, index, row, itemFilter) {
+      const mode = itemFilter ?? selectedReportItemFilter();
+      const complete = isRowMarkedComplete(sec, index, row);
+      if (mode === "completed") return complete;
+      if (mode === "incomplete") return !complete;
+      return true;
+    }
+
+    function reportEmptyMessage(itemFilter) {
+      const mode = itemFilter ?? selectedReportItemFilter();
+      if (mode === "completed") return "No completed items for this scope.";
+      if (mode === "incomplete") return "No incomplete items for this scope.";
+      return "No items for this scope.";
+    }
+
+    function reportFilterSubtitle(itemFilter) {
+      const mode = itemFilter ?? selectedReportItemFilter();
+      if (mode === "completed") return "Completed items only";
+      if (mode === "incomplete") return "Incomplete items only";
+      return "All items";
+    }
+
+    function buildReportRowGroups(sec, itemFilter) {
       const section = state.sections[sec];
       const headers = getDisplayHeaders(sec);
       const groups = [];
@@ -3392,15 +3446,16 @@
       bySection.forEach((group) => {
         const rows = [];
         group.items.forEach(({ index, row }) => {
-          if (reportIncludeRow(sec, index, row)) rows.push({ index, row });
+          if (reportIncludeRow(sec, index, row, itemFilter)) rows.push({ index, row });
         });
         if (rows.length) groups.push({ title: group.title, headers, rows });
       });
       return groups;
     }
 
-    function buildReportHtml(scope) {
+    function buildReportHtml(scope, itemFilter) {
       const tabs = workstreamsForReportScope(scope);
+      const filterMode = itemFilter ?? selectedReportItemFilter();
       const title = escapeHtml(state.title || embeddedBranding().title);
       const subtitle = escapeHtml(state.subtitle || "");
       const generated = new Date().toLocaleString();
@@ -3409,10 +3464,12 @@
       parts.push(`<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Segoe UI,Helvetica,Arial,sans-serif;color:#151515;line-height:1.45;margin:0;padding:16px;">`);
       parts.push(`<h1 style="color:#003087;font-size:22px;margin:0 0 8px;">${title}</h1>`);
       if (subtitle) parts.push(`<p style="color:#75787b;margin:0 0 16px;">${subtitle}</p>`);
-      parts.push(`<p style="color:#75787b;font-size:13px;margin:0 0 20px;">Generated ${escapeHtml(generated)} · Open and in-progress items only</p>`);
+      parts.push(
+        `<p style="color:#75787b;font-size:13px;margin:0 0 20px;">Generated ${escapeHtml(generated)} · ${escapeHtml(reportFilterSubtitle(filterMode))}</p>`
+      );
 
       tabs.forEach((sec) => {
-        const groups = buildReportRowGroups(sec);
+        const groups = buildReportRowGroups(sec, filterMode);
         if (!groups.length) return;
         parts.push(`<h2 style="color:#0072ce;font-size:18px;margin:28px 0 12px;border-bottom:1px solid #d9dadc;padding-bottom:6px;">${escapeHtml(workstreamLabel(sec))}</h2>`);
         groups.forEach((group) => {
@@ -3820,6 +3877,7 @@
         : "This tab";
       document.getElementById("reportPreview").hidden = true;
       document.getElementById("reportModalActions").hidden = true;
+      clearReportCopyStatus();
       lastReportHtml = "";
       modal.hidden = false;
     }
@@ -3833,21 +3891,162 @@
       return picked ? picked.value : "active";
     }
 
-    async function copyReportHtml(html) {
+    function reportHtmlHasRows(html) {
+      return Boolean(html && html.includes("<table"));
+    }
+
+    function buildReportHtmlForExport(scope, itemFilter) {
+      const html = buildReportHtml(
+        scope ?? selectedReportScope(),
+        itemFilter ?? selectedReportItemFilter()
+      );
+      return reportHtmlHasRows(html) ? html : null;
+    }
+
+    function refreshReportPreviewUi() {
+      const itemFilter = selectedReportItemFilter();
+      const html = buildReportHtmlForExport(selectedReportScope(), itemFilter);
+      const preview = document.getElementById("reportPreview");
+      const actions = document.getElementById("reportModalActions");
+      lastReportHtml = html || "";
+      if (!html) {
+        preview.textContent = reportEmptyMessage(itemFilter);
+        preview.hidden = false;
+        if (actions) actions.hidden = true;
+        return false;
+      }
+      preview.innerHTML = html;
+      preview.hidden = false;
+      if (actions) actions.hidden = false;
+      return true;
+    }
+
+    function clearReportCopyStatus() {
+      const el = document.getElementById("reportCopyStatus");
+      if (!el) return;
+      el.textContent = "";
+      el.className = "report-copy-status";
+      el.hidden = true;
+    }
+
+    function setReportCopyStatus(kind, message) {
+      const el = document.getElementById("reportCopyStatus");
+      if (!el) return;
+      el.textContent = message || "";
+      el.className = "report-copy-status" + (kind === "ok" ? " is-ok" : kind === "error" ? " is-error" : "");
+      el.hidden = !message;
+    }
+
+    function clipboardFailureReason(err) {
+      if (!err) return "Clipboard access is not available.";
+      if (err.name === "NotAllowedError") {
+        return "Clipboard permission was denied. Allow clipboard access for this site, or use Download HTML.";
+      }
+      if (err.name === "SecurityError") {
+        return "Clipboard access is blocked on this page. Open the tracker from http://localhost (not as a downloaded file), or use Download HTML.";
+      }
+      return err.message || String(err);
+    }
+
+    function copySelectionFromElement(node) {
+      if (!node || !node.childNodes?.length) return false;
+      const selection = window.getSelection();
+      if (!selection) return false;
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      let ok = false;
       try {
-        if (navigator.clipboard.write && window.ClipboardItem) {
+        ok = document.execCommand("copy");
+      } catch (_) {
+        ok = false;
+      }
+      selection.removeAllRanges();
+      return ok;
+    }
+
+    function copyReportHtmlViaExecCommand(html) {
+      const body = new DOMParser().parseFromString(html, "text/html").body;
+      if (!body?.childNodes?.length) return false;
+      const host = document.createElement("div");
+      host.contentEditable = "true";
+      host.setAttribute("aria-hidden", "true");
+      host.style.cssText = "position:fixed;left:-10000px;top:0;opacity:0;pointer-events:none;";
+      host.appendChild(body.cloneNode(true));
+      document.body.appendChild(host);
+      const ok = copySelectionFromElement(host);
+      host.remove();
+      return ok;
+    }
+
+    function ensureReportPreviewHasHtml(html) {
+      const preview = document.getElementById("reportPreview");
+      const actions = document.getElementById("reportModalActions");
+      if (!preview || !html) return false;
+      preview.innerHTML = html;
+      preview.hidden = false;
+      if (actions) actions.hidden = false;
+      return true;
+    }
+
+    async function copyReportHtmlToClipboard(html) {
+      const failures = [];
+
+      const preview = document.getElementById("reportPreview");
+      if (preview && !preview.hidden && preview.childNodes.length) {
+        if (copySelectionFromElement(preview)) {
+          return {
+            ok: true,
+            message: "Copied to clipboard. Paste into the body of your email message.",
+          };
+        }
+        failures.push("Could not copy from the preview.");
+      }
+
+      if (copyReportHtmlViaExecCommand(html)) {
+        return {
+          ok: true,
+          message: "Copied formatted report to clipboard. Paste into the body of your email message.",
+        };
+      }
+      failures.push("Formatted copy is not supported in this browser.");
+
+      try {
+        if (navigator.clipboard?.write && window.ClipboardItem) {
           await navigator.clipboard.write([
             new ClipboardItem({
               "text/html": new Blob([html], { type: "text/html" }),
               "text/plain": new Blob([html], { type: "text/plain" }),
             }),
           ]);
-          return;
+          return {
+            ok: true,
+            message: "Copied to clipboard. Paste into the body of your email message.",
+          };
         }
-      } catch (_) {
-        /* fallback */
+      } catch (err) {
+        failures.push(clipboardFailureReason(err));
       }
-      await navigator.clipboard.writeText(html);
+
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(html);
+          return {
+            ok: true,
+            message:
+              "Copied HTML source as plain text. If formatting is lost when you paste, use Download HTML or paste into your email client’s HTML/source view.",
+          };
+        }
+      } catch (err) {
+        failures.push(clipboardFailureReason(err));
+      }
+
+      const detail = failures.filter(Boolean).join(" ");
+      return {
+        ok: false,
+        message: `Could not copy to clipboard. ${detail} Try Download HTML instead.`,
+      };
     }
 
     function downloadHtmlFile(html, filename) {
@@ -3856,8 +4055,11 @@
       const a = document.createElement("a");
       a.href = url;
       a.download = filename || "export.html";
+      a.rel = "noopener";
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
     }
 
     function downloadReportHtml(html) {
@@ -5424,30 +5626,57 @@
     document.getElementById("workstreamApproveBackdrop").addEventListener("click", closeWorkstreamApproveModal);
 
     document.getElementById("btnReportPreview").addEventListener("click", () => {
-      lastReportHtml = buildReportHtml(selectedReportScope());
-      const preview = document.getElementById("reportPreview");
-      if (!lastReportHtml.includes("<table")) {
-        preview.textContent = "No open or in-progress items for this scope.";
-        lastReportHtml = "";
-      } else {
-        preview.innerHTML = lastReportHtml;
-      }
-      preview.hidden = false;
-      document.getElementById("reportModalActions").hidden = false;
+      refreshReportPreviewUi();
+    });
+
+    document.querySelectorAll('input[name="reportScope"]').forEach((el) => {
+      el.addEventListener("change", () => {
+        const preview = document.getElementById("reportPreview");
+        if (preview && !preview.hidden) refreshReportPreviewUi();
+      });
+    });
+
+    document.querySelectorAll('input[name="reportItemFilter"]').forEach((el) => {
+      el.addEventListener("change", () => {
+        if (el.checked) {
+          document.querySelectorAll('input[name="reportItemFilter"]').forEach((other) => {
+            if (other !== el) other.checked = false;
+          });
+        } else if (!document.querySelector('input[name="reportItemFilter"]:checked')) {
+          el.checked = true;
+        }
+        const preview = document.getElementById("reportPreview");
+        if (preview && !preview.hidden) refreshReportPreviewUi();
+      });
     });
 
     document.getElementById("btnReportCopy").addEventListener("click", async () => {
-      if (!lastReportHtml) return;
-      try {
-        await copyReportHtml(lastReportHtml);
-      } catch {
-        alert("Could not copy to clipboard. Try Download HTML instead.");
+      const btn = document.getElementById("btnReportCopy");
+      const itemFilter = selectedReportItemFilter();
+      const html = buildReportHtmlForExport(selectedReportScope(), itemFilter) || lastReportHtml;
+      if (!html) {
+        setReportCopyStatus("error", reportEmptyMessage(itemFilter));
+        return;
       }
+      lastReportHtml = html;
+      ensureReportPreviewHasHtml(html);
+      clearReportCopyStatus();
+      if (btn) btn.disabled = true;
+      setReportCopyStatus("info", "Copying…");
+      const result = await copyReportHtmlToClipboard(html);
+      if (btn) btn.disabled = false;
+      setReportCopyStatus(result.ok ? "ok" : "error", result.message);
     });
 
     document.getElementById("btnReportDownload").addEventListener("click", () => {
-      if (!lastReportHtml) return;
-      downloadReportHtml(lastReportHtml);
+      const itemFilter = selectedReportItemFilter();
+      const html = buildReportHtmlForExport(selectedReportScope(), itemFilter) || lastReportHtml;
+      if (!html) {
+        alert(reportEmptyMessage(itemFilter));
+        return;
+      }
+      lastReportHtml = html;
+      downloadReportHtml(html);
     });
 
     document.getElementById("btnReportClose").addEventListener("click", closeReportModal);

@@ -29,7 +29,10 @@ On the empty home screen, set an optional **POC title** and optional **status co
 
 ### Google Doc (default)
 
-1. **Import from URL** — paste the Google Doc share link and click **Import from URL**. Requires `npm start` or Docker (the server fetches a **Markdown** export). The doc must be shared so **anyone with the link can view**.
+**Google Doc template (import, don’t build from scratch):**  
+[POC evaluation import template](https://docs.google.com/document/d/1QD0Tboo8Wm6GxObBhxqrCPG0x4lBBR9DkapDppnSBRw/edit) — same URL as [`gdoc-link`](gdoc-link) in this repo. Open the doc, use **File → Make a copy** for your own POC, fill in criteria using the tab and table layout below, then import into the tracker.
+
+1. **Import from URL** — paste your Google Doc share link (or the template URL after copying) and click **Import from URL**. Requires `npm start` or Docker (the server fetches a **Markdown** export). The doc must be shared so **anyone with the link can view**.
 2. **Upload from computer** — in Google Docs use **File → Download → Markdown**, then **Upload from computer…** and choose the `.md` file. Works without the import API (static hosting is read-only for progress).
 
 After import, the **Approve workstreams** dialog lists each detected workstream. Check or uncheck entries, edit names, then **Import selected**.
@@ -142,6 +145,7 @@ Timegraph **JSON/CSV** exports are completion **logs only**; use **Download back
 | `server.mjs` | Static server, `GET/PUT /api/state`, `GET /state.json`, `POST /api/import-google-doc`, periodic backup |
 | `scripts/ensure-state.mjs` | Creates `state.json` when missing |
 | `example-evaluation.md` | Sample markdown import |
+| `gdoc-link` | Google Doc import template URL and notes |
 | `Dockerfile` / `docker-compose.yml` | Container deployment |
 
 ## Environment
