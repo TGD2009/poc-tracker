@@ -1,6 +1,6 @@
 # POC Evaluation Tracker
 
-A single-page app for tracking proof-of-concept evaluation criteria: **import** from a Google Doc or markdown file, **build** a framework in the browser, mark progress by workstream, view charts and a **completion timegraph**, and generate HTML reports for email.
+A single-page app for tracking proof-of-concept evaluation criteria: **import** from a Google Doc or markdown file, **build** a framework in the browser, mark progress by workstream, view charts and a **completion timegraph**, edit **POC settings** (title, summary, structure, colors), generate HTML **email reports**, and produce a **POC sign-off sheet**.
 
 ## Quick start
 
@@ -25,11 +25,14 @@ Progress is stored in the named volume `poc_tracker_state` (mounted at `/data` i
 
 ## Getting criteria into the app
 
-On the empty home screen, set an optional **POC title** and optional **status colors** (defaults: completed `#22c55e`, in progress `#f59e0b`), then choose one of three tabs.
+On the empty home screen, set an optional **POC title** and optional **status colors** (defaults: completed `#22c55e`, in progress `#f59e0b`), then choose one of three tabs. You can change the title later from **POC Settings** after import.
 
 ### Google Doc (default)
 
-1. **Import from URL** — paste the Google Doc share link and click **Import from URL**. Requires `npm start` or Docker (the server fetches a **Markdown** export). The doc must be shared so **anyone with the link can view**.
+**Google Doc template (import, don’t build from scratch):**  
+[POC evaluation import template](https://docs.google.com/document/d/1QD0Tboo8Wm6GxObBhxqrCPG0x4lBBR9DkapDppnSBRw/edit) — same URL as [`gdoc-link`](gdoc-link) in this repo. Open the doc, use **File → Make a copy** for your own POC, fill in criteria using the tab and table layout below, then import into the tracker.
+
+1. **Import from URL** — paste your Google Doc share link (or the template URL after copying) and click **Import from URL**. Requires `npm start` or Docker (the server fetches a **Markdown** export). The doc must be shared so **anyone with the link can view**.
 2. **Upload from computer** — in Google Docs use **File → Download → Markdown**, then **Upload from computer…** and choose the `.md` file. Works without the import API (static hosting is read-only for progress).
 
 After import, the **Approve workstreams** dialog lists each detected workstream. Check or uncheck entries, edit names, then **Import selected**.
@@ -67,63 +70,160 @@ See `example-evaluation.md` for classic markdown. Use your Google Doc **Download
 
 Switch to **Build here** → **Start building POC…** to create workstreams, sections, and tables in a full-screen editor (add/rename workstreams, sections, columns, and rows; drag to reorder). **Save** loads the normal tracker UI.
 
-After data exists, use the hamburger menu → **POC Settings** → **POC structure** to change the framework (with a warning if completion progress already exists).
+After data exists, use **POC Settings** → **POC structure** to change the framework (with a warning if completion progress already exists).
 
-### POC sign-off sheet
+## POC Settings
 
-Hamburger → **POC sign-off sheet…** builds a printable HTML page:
+Hamburger → **POC Settings** opens a hub for:
 
-- **Summary** — overall and per-workstream completion counts (from tracker checkboxes / notes).
-- **Attestation** — default English text you can edit; stored in `state.json` under `signOff.attestationText`.
-- **Signatories** — roster in `signatoryRoster`; names are added on **import** from table columns whose headers match **Owner**, **Assignee**, **Responsible**, and similar. Use **Refresh from Owner columns** after editing criteria. Each person has free-form **role** and **organization** fields. Check who appears on the sheet; order follows the list.
-- **Incomplete POCs** — a yellow notice appears on the sheet unless everything is done. Optional checkbox blocks preview until 100% complete.
-- **Output** — **Download HTML** (`poc-sign-off.html`) or **Print / Save as PDF** from the browser.
+| Setting | What it does |
+|---------|----------------|
+| **POC title** | Header title and report/sign-off titles |
+| **Summary** | Optional paragraph shown below the progress chart (read-only on the main page; edit in the modal) |
+| **POC structure** | Workstreams, sections, columns, and criteria rows |
+| **Chart colors** | Completed / in-progress colors for chart, legend, timegraph, and notes styling |
+
+Each screen opened from here has **← POC Settings** to return to the hub.
+
+## POC sign-off sheet
+
+Hamburger → **POC sign-off sheet…** (below **View timegraph…**) builds a printable HTML page:
+
+- **Completion overview** — overall and per-workstream counts (from tracker checkboxes / notes).
+- **Attestation** — default English text you can edit in the sign-off dialog (saved with the POC).
+- **Signatories** — roster built from **Owner** / similar columns on import, plus manual entries; free-form role and organization; check who appears on the sheet.
+- **Incomplete POCs** — a yellow notice on the sheet when not 100% done; optional setting blocks preview until complete.
+- **Output** — **Download HTML** (`poc-sign-off.html`) or **Print / Save as PDF**.
 
 ## Using the tracker
 
 - **Workstream tabs** appear for each workstream that has rows.
 - **Sections** group rows under headings (default section title **General** when none is set).
-- Check **Done** on a row to record a **timestamp**; unchecking and checking again sets a new completion time. Notes can also mark items complete.
-- **POC progress by workstream** chart on the main page (default colors: **green** = completed, **amber** = in progress, neutral gray = open).
-- **Summary** — optional paragraph below the chart (**POC Settings** → **Summary**); stored in `state.json` as `summary`.
-- **Status colors** — set **Completed** and **In progress** colors in the POC title panel (before import), on the **Build here** tab, or via **POC Settings** → **Chart colors** after data exists. Saved in `state.json` with the POC; used on the chart, legend, timegraph, and notes highlighting.
-- Hamburger menu:
-  - **POC Settings** — POC title, summary, structure, and chart colors
-  - **View timegraph…** — timeline of check-offs; download completion log as JSON or CSV
-  - **Email report…** — HTML preview, copy, or download (open / in-progress items)
-  - **POC sign-off sheet…** — formal completion document with POC summary, editable attestation text, and signature lines; pick signatories from a roster (names from **Owner** / similar columns on import, or add manually); download HTML or print to PDF
-  - **Download backup (JSON)** / **Restore from backup…** — full app state (criteria + progress), for moving machines or recovering after clearing browser data
-  - **Reset all data** — clears criteria and progress
+- Check **Done** on a row to record a **timestamp**; unchecking clears the checkbox state (and auto-filled completion text in notes/status when applicable). Checking again sets a new completion time. Notes/status text can also drive completed vs in-progress styling.
+- **POC progress by workstream** chart (default: **green** = completed, **amber** = in progress, gray = open).
+- **Summary** paragraph below the chart when text exists (edit via **POC Settings** → **Summary**).
+- Page footer shows **Saved** time and sync status (**Saved and synced** when using `npm start` or Docker).
+
+### Hamburger menu (after data exists)
+
+| Item | Purpose |
+|------|---------|
+| **Show all rows** / **Hide all completed** | Table visibility |
+| **Email report…** | HTML preview, copy, or download (open / in-progress items) |
+| **POC Settings** | Title, summary, structure, chart colors |
+| **View timegraph…** | Timeline of check-offs; download completion log JSON or CSV |
+| **POC sign-off sheet…** | Formal sign-off HTML / print |
+| **Download backup (JSON)** / **Restore from backup…** | Full state for another machine or after clearing browser data |
+| **Reset all data** | Clears criteria and progress (top of menu) |
 
 ## Persistence and backups
 
 | Mechanism | What it does |
 |-----------|----------------|
-| **Browser `localStorage`** | Always used while you work |
-| **`state.json`** | Written when using `npm start` or Docker (`PUT /api/state`); includes criteria, progress, workstreams, `statusColors`, `signatoryRoster`, and `signOff` (attestation text and options); reloaded on next visit if the browser cache was cleared |
-| **`state.json.backup`** | Server copies `state.json` over this file every **5 minutes** (same folder as `state.json`) |
-| **`poc-tracker-backup.json`** | Manual export from the menu (same payload shape as `state.json`) |
+| **Browser `localStorage`** | Cache while you work |
+| **`state.json`** | Server file when using `npm start` or Docker — criteria, progress, workstreams, `title`, `summary`, `statusColors`, `signatoryRoster`, `signOff`, etc. |
+| **`state.json.backup`** | Server copy every **5 minutes** |
+| **`poc-tracker-backup.json`** | Manual export from the menu (same shape as `state.json`) |
 
-`state.json` and `state.json.backup` are **gitignored**. Each clone gets a fresh `state.json` from `state.json.example` on `npm install` or server startup.
+`state.json` and `state.json.backup` are **gitignored**. `npm install` or server startup creates `state.json` from `state.json.example` only if the file is missing.
 
-To restore from `state.json.backup` on the server: stop writes if needed, then `cp state.json.backup state.json` in `DATA_DIR` (or `/data` in Docker) and refresh the app.
+To restore from `state.json.backup` on the server: stop writes if needed, then `cp state.json.backup state.json` in `DATA_DIR` (or `/data` in Docker) and refresh.
 
-The timegraph **Download JSON/CSV** files are completion **logs only**; use **Download backup (JSON)** or `state.json` for a full restore.
+Timegraph **JSON/CSV** exports are completion **logs only**; use **Download backup (JSON)** or a full `state.json` for restore.
+
+## How marking criteria complete works
+
+Each criterion row has a stable **`uid`** on the row object (for example `r_g2yhsvzh85iay`). Completion is stored separately in **`progress[uid]`**, not only in the Google Doc or Status column.
+
+### When someone checks **Done**
+
+1. The **Done** checkbox calls `markRowCompleted(uid)`.
+2. That sets `progress[uid]` to something like:
+   - `completed: true`
+   - `completedAt`: ISO timestamp
+   - `completionLog`: append `{ "at": "…", "type": "completed" }`
+3. If Status/notes were empty, the row’s **Status** (or notes) field is set to `Completed` for display in the table and email report.
+4. `saveState()` writes the full app state to **browser `localStorage`** and, when you use `npm start` or Docker, debounces a **PUT** to `/api/state` (same JSON shape as `state.json`).
+
+Unchecking **Done** sets `completed: false`, clears `completedAt`, appends a `reopened` log entry, and clears Status/notes completion text.
+
+Typing **Completed** (or **Yes**) in the Status column can also mark the row complete via the same `progress` record.
+
+### How the UI decides “complete”
+
+`isRowMarkedComplete` returns true if any of these apply (in order):
+
+1. `progress[uid].completed === true`
+2. Status/notes text matches completed (only when there is no conflicting progress state)
+3. The **last** entry in `completionLog` is `type: "completed"` (used to fix backups where the flag and log disagree)
+
+The chart, stats, hide-completed, and email report all use this same rule.
+
+### What gets saved in `state.json` / backup
+
+A **full** backup (`state.json`, **Download backup (JSON)**, or **Restore from backup…**) includes at least:
+
+| Piece | Purpose |
+|--------|---------|
+| `sections` | Criteria rows; each row must keep its **`uid`** |
+| `progress` | Keys are those **`uid`** values; values hold `completed`, `completedAt`, `completionLog` |
+| `workstreamOrder`, `workstreamLabels`, `title`, `summary`, … | Rest of the POC |
+
+**`progress` keys must match row `uid` values.** If they do not, checkboxes will not line up with the right criteria after restore.
+
+### Restoring completions on a blank POC
+
+Use a **full** state file, not a timegraph export.
+
+**Option A — Menu (any hosting)**
+
+1. Start from an empty tracker (or reset).
+2. Menu → **Restore from backup…** and choose `state.json` or `poc-tracker-backup.json`.
+3. Confirm. The app replaces in-memory state with the file, reconciles progress flags from logs, saves to `localStorage`, and syncs to the server if `npm start` is running.
+
+**Option B — Server file**
+
+1. Copy your backup to `state.json` in `DATA_DIR` (project root by default).
+2. Run `npm start` and open the app (hard-refresh once).
+3. With the API available, **`state.json` is preferred over stale browser cache** unless the cache clearly has more rows/completed items.
+
+**Does not restore completions**
+
+- **Import from URL / Upload markdown** on a blank POC builds **new** row `uid`s and **clears** `progress`. Use restore **after** import only if the backup was taken from the **same** import (same `uid`s). To move a POC with checkoffs to a new machine, restore the **full** backup; do not re-import the doc and expect an old `state.json` to attach.
+- **View timegraph → Download JSON/CSV** — timeline export only, not a full restore file.
+
+### Minimal `progress` example
+
+```json
+"progress": {
+  "r_g2yhsvzh85iay": {
+    "completed": true,
+    "completedAt": "2026-10-13T17:40:28.315Z",
+    "completionLog": [
+      { "at": "2026-10-13T17:40:28.315Z", "type": "completed" }
+    ]
+  }
+}
+```
+
+The matching row in `sections.*.rows[]` must include `"uid": "r_g2yhsvzh85iay"`.
 
 **Restore troubleshooting**
 
-- Dropping a file named `state.json` in the project folder only loads on **`npm start`** (or Docker), not when opening the HTML as `file://`. The app merges server `state.json` with browser `localStorage`; if the file has more criteria rows than the cache, the file wins.
-- A valid full backup must have **non-empty `sections.*.rows`** (and usually `progress`). A fresh `state.json` from `state.json.example` looks correct but has **zero rows** — restoring it shows an empty POC.
-- Prefer **`poc-tracker-backup.json`** (menu export) or **`state.json.backup`** over a hand-edited empty `state.json`.
+- Replacing `state.json` on disk only applies with **`npm start`** or Docker, not `file://`. With the server running, **`state.json` wins on refresh** unless your browser cache has strictly more criteria rows or completed progress. After editing `state.json` by hand, hard-refresh the page (or clear site data for this origin) if you still see old progress.
+- Rows show as **Done** when `progress[rowUid].completed` is `true` (or status/notes text matches “completed” only if there is no progress record for that row). Editing `completionLog` alone does not mark a row complete—the `completed` flag must be `true`.
+- A valid backup must have **non-empty `sections.*.rows`**. An empty template restores as an empty POC.
+- Prefer **menu backup** or **`state.json.backup`** over an empty hand-edited file.
 
 ## Project layout
 
 | File | Purpose |
 |------|---------|
 | `virtualization-kubernetes-tracker.html` | App UI and logic |
-| `server.mjs` | Static server, `GET/PUT /api/state`, `GET /state.json`, `POST /api/import-google-doc`, periodic `state.json` backup |
+| `server.mjs` | Static server, `GET/PUT /api/state`, `GET /state.json`, `POST /api/import-google-doc`, periodic backup |
 | `scripts/ensure-state.mjs` | Creates `state.json` when missing |
 | `example-evaluation.md` | Sample markdown import |
+| `gdoc-link` | Google Doc import template URL and notes |
 | `Dockerfile` / `docker-compose.yml` | Container deployment |
 
 ## Environment
