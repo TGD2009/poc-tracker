@@ -2316,11 +2316,15 @@
     function trackerDataScore(s) {
       if (!s) return 0;
       let rows = 0;
+      let completed = 0;
       Object.values(s.sections || {}).forEach((sec) => {
         rows += sec?.rows?.length || 0;
       });
+      Object.values(s.progress || {}).forEach((p) => {
+        if (p?.completed) completed += 1;
+      });
       const progressKeys = Object.keys(s.progress || {}).length;
-      return rows * 1000 + progressKeys;
+      return rows * 100000 + completed * 1000 + progressKeys;
     }
 
     function hydrateFromRemote(remote) {
@@ -2332,7 +2336,9 @@
         ...base,
         ...remote,
         sections,
-        progress: { ...(remote.progress || {}) },
+        progress: remote.progress
+          ? JSON.parse(JSON.stringify(remote.progress))
+          : {},
         workstreamOrder: remote.workstreamOrder?.length
           ? [...remote.workstreamOrder]
           : Object.keys(sections),
@@ -2350,6 +2356,7 @@
           inProgress: normalizeHexColor(remote.statusColors.inProgress, DEFAULT_STATUS_COLORS.inProgress),
         };
       }
+      reconcileProgressFlagsFromCompletionLog(merged);
       return merged;
     }
 
@@ -2363,7 +2370,33 @@
       return Date.parse(a) > Date.parse(b);
     }
 
-    async function loadStateAsync() {
+    function reconcileProgressFlagsFromCompletionLog(targetState) {
+      const s = targetState || state;
+      let changed = false;
+      Object.values(s.progress || {}).forEach((p) => {
+        if (!p || !Array.isArray(p.completionLog) || !p.completionLog.length) return;
+        const last = p.completionLog[p.completionLog.length - 1];
+        if (last.type === "completed") {
+          if (!p.completed) {
+            p.completed = true;
+            changed = true;
+          }
+          if (!p.completedAt) {
+            p.completedAt = last.at || completionTimestampNow();
+            changed = true;
+          }
+        } else if (last.type === "reopened") {
+          if (p.completed) {
+            p.completed = false;
+            p.completedAt = null;
+            changed = true;
+          }
+        }
+      });
+      return changed;
+    }
+
+    async function loadStateAsync(serverSyncAvailable) {
       let local = loadStateFromLocalStorage();
       let remote = null;
       try {
@@ -2373,19 +2406,37 @@
         /* static hosting or offline */
       }
 
-      if (!remote) return local;
+      if (!remote) {
+        reconcileProgressFlagsFromCompletionLog(local);
+        return local;
+      }
 
       const localScore = trackerDataScore(local);
       const remoteScore = trackerDataScore(remote);
 
-      // Prefer whichever copy actually has criteria / progress (stale local cache often wins on timestamp alone).
+      // With npm start / Docker, state.json on disk is the source of truth unless the browser clearly has more data.
+      if (serverSyncAvailable) {
+        if (localScore > remoteScore) {
+          reconcileProgressFlagsFromCompletionLog(local);
+          return local;
+        }
+        return hydrateFromRemote(remote);
+      }
+
+      // Static hosting: merge local cache with fetched state.json.
       if (remoteScore > localScore) return hydrateFromRemote(remote);
-      if (localScore > remoteScore) return local;
+      if (localScore > remoteScore) {
+        reconcileProgressFlagsFromCompletionLog(local);
+        return local;
+      }
 
       const remoteTime = remote.updatedAt;
       const localTime = local.updatedAt;
       if (isTimestampNewer(remoteTime, localTime)) return hydrateFromRemote(remote);
-      if (isTimestampNewer(localTime, remoteTime)) return local;
+      if (isTimestampNewer(localTime, remoteTime)) {
+        reconcileProgressFlagsFromCompletionLog(local);
+        return local;
+      }
       return hydrateFromRemote(remote);
     }
 
@@ -2466,7 +2517,15 @@
     }
 
     async function boot() {
-      state = await loadStateAsync();
+      jsonSyncCapable = await probeJsonSyncApi();
+      state = await loadStateAsync(jsonSyncCapable);
+      if (jsonSyncCapable) {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (_) {
+          /* quota or private mode */
+        }
+      }
       if (!String(state.title || "").trim()) {
         applyEmbeddedBranding(state);
       }
@@ -2474,7 +2533,6 @@
       if (ensureSummaryState()) saveState();
       syncSummaryDisplayFromState();
       setUiVisibility();
-      jsonSyncCapable = await probeJsonSyncApi();
       if (ensureStatusColors()) saveState();
       if (ensureSignOffState()) saveState();
       applyStatusColorsFromState();
@@ -2887,10 +2945,14 @@
     function isRowMarkedComplete(sec, index, row) {
       const id = rowId(sec, index);
       const tracked = state.progress[id];
-      if (tracked) {
-        return Boolean(tracked.completed);
+      if (tracked?.completed) return true;
+      if (isRowDocComplete(row, sec)) return true;
+      const log = tracked?.completionLog;
+      if (log?.length) {
+        const last = log[log.length - 1];
+        return last.type === "completed";
       }
-      return isRowDocComplete(row, sec);
+      return false;
     }
 
     function clearDocCompletionFields(sec, row) {
@@ -2932,10 +2994,8 @@
         markRowCompleted(id);
       } else if (!nowComplete && p.completed) {
         markRowReopened(id);
-      } else if (!nowComplete) {
-        ensureProgressRecord(id);
-        state.progress[id].completed = false;
-        state.progress[id].completedAt = null;
+      } else if (!nowComplete && state.progress[id] && !state.progress[id].completionLog?.length) {
+        delete state.progress[id];
       }
       saveState();
       refreshCompletionViews();
@@ -3723,6 +3783,7 @@
       migrateProgressKeysToRowUids();
       ensureRowUids();
       normalizeTrackerSchema();
+      reconcileProgressFlagsFromCompletionLog();
       ensureStatusColors();
       ensureSignOffState();
       ensureSummaryState();

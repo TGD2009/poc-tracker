@@ -131,9 +131,87 @@ To restore from `state.json.backup` on the server: stop writes if needed, then `
 
 Timegraph **JSON/CSV** exports are completion **logs only**; use **Download backup (JSON)** or a full `state.json` for restore.
 
+## How marking criteria complete works
+
+Each criterion row has a stable **`uid`** on the row object (for example `r_g2yhsvzh85iay`). Completion is stored separately in **`progress[uid]`**, not only in the Google Doc or Status column.
+
+### When someone checks **Done**
+
+1. The **Done** checkbox calls `markRowCompleted(uid)`.
+2. That sets `progress[uid]` to something like:
+   - `completed: true`
+   - `completedAt`: ISO timestamp
+   - `completionLog`: append `{ "at": "…", "type": "completed" }`
+3. If Status/notes were empty, the row’s **Status** (or notes) field is set to `Completed` for display in the table and email report.
+4. `saveState()` writes the full app state to **browser `localStorage`** and, when you use `npm start` or Docker, debounces a **PUT** to `/api/state` (same JSON shape as `state.json`).
+
+Unchecking **Done** sets `completed: false`, clears `completedAt`, appends a `reopened` log entry, and clears Status/notes completion text.
+
+Typing **Completed** (or **Yes**) in the Status column can also mark the row complete via the same `progress` record.
+
+### How the UI decides “complete”
+
+`isRowMarkedComplete` returns true if any of these apply (in order):
+
+1. `progress[uid].completed === true`
+2. Status/notes text matches completed (only when there is no conflicting progress state)
+3. The **last** entry in `completionLog` is `type: "completed"` (used to fix backups where the flag and log disagree)
+
+The chart, stats, hide-completed, and email report all use this same rule.
+
+### What gets saved in `state.json` / backup
+
+A **full** backup (`state.json`, **Download backup (JSON)**, or **Restore from backup…**) includes at least:
+
+| Piece | Purpose |
+|--------|---------|
+| `sections` | Criteria rows; each row must keep its **`uid`** |
+| `progress` | Keys are those **`uid`** values; values hold `completed`, `completedAt`, `completionLog` |
+| `workstreamOrder`, `workstreamLabels`, `title`, `summary`, … | Rest of the POC |
+
+**`progress` keys must match row `uid` values.** If they do not, checkboxes will not line up with the right criteria after restore.
+
+### Restoring completions on a blank POC
+
+Use a **full** state file, not a timegraph export.
+
+**Option A — Menu (any hosting)**
+
+1. Start from an empty tracker (or reset).
+2. Menu → **Restore from backup…** and choose `state.json` or `poc-tracker-backup.json`.
+3. Confirm. The app replaces in-memory state with the file, reconciles progress flags from logs, saves to `localStorage`, and syncs to the server if `npm start` is running.
+
+**Option B — Server file**
+
+1. Copy your backup to `state.json` in `DATA_DIR` (project root by default).
+2. Run `npm start` and open the app (hard-refresh once).
+3. With the API available, **`state.json` is preferred over stale browser cache** unless the cache clearly has more rows/completed items.
+
+**Does not restore completions**
+
+- **Import from URL / Upload markdown** on a blank POC builds **new** row `uid`s and **clears** `progress`. Use restore **after** import only if the backup was taken from the **same** import (same `uid`s). To move a POC with checkoffs to a new machine, restore the **full** backup; do not re-import the doc and expect an old `state.json` to attach.
+- **View timegraph → Download JSON/CSV** — timeline export only, not a full restore file.
+
+### Minimal `progress` example
+
+```json
+"progress": {
+  "r_g2yhsvzh85iay": {
+    "completed": true,
+    "completedAt": "2026-10-13T17:40:28.315Z",
+    "completionLog": [
+      { "at": "2026-10-13T17:40:28.315Z", "type": "completed" }
+    ]
+  }
+}
+```
+
+The matching row in `sections.*.rows[]` must include `"uid": "r_g2yhsvzh85iay"`.
+
 **Restore troubleshooting**
 
-- Replacing `state.json` on disk only applies with **`npm start`** or Docker, not `file://`. The app merges server data with `localStorage`; the copy with more criteria rows usually wins.
+- Replacing `state.json` on disk only applies with **`npm start`** or Docker, not `file://`. With the server running, **`state.json` wins on refresh** unless your browser cache has strictly more criteria rows or completed progress. After editing `state.json` by hand, hard-refresh the page (or clear site data for this origin) if you still see old progress.
+- Rows show as **Done** when `progress[rowUid].completed` is `true` (or status/notes text matches “completed” only if there is no progress record for that row). Editing `completionLog` alone does not mark a row complete—the `completed` flag must be `true`.
 - A valid backup must have **non-empty `sections.*.rows`**. An empty template restores as an empty POC.
 - Prefer **menu backup** or **`state.json.backup`** over an empty hand-edited file.
 
