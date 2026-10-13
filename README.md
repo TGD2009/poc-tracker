@@ -1,6 +1,6 @@
 # POC Evaluation Tracker
 
-A single-page app for tracking proof-of-concept evaluation criteria: **import** from a Google Doc or markdown file, **build** a framework in the browser, mark progress by workstream, view charts and a **completion timegraph**, and generate HTML reports for email.
+A single-page app for tracking proof-of-concept evaluation criteria: **import** from a Google Doc or markdown file, **build** a framework in the browser, mark progress by workstream, view charts and a **completion timegraph**, edit **POC settings** (title, summary, structure, colors), generate HTML **email reports**, and produce a **POC sign-off sheet**.
 
 ## Quick start
 
@@ -25,7 +25,7 @@ Progress is stored in the named volume `poc_tracker_state` (mounted at `/data` i
 
 ## Getting criteria into the app
 
-On the empty home screen, set an optional **POC title** and optional **status colors** (defaults: completed `#22c55e`, in progress `#f59e0b`), then choose one of three tabs.
+On the empty home screen, set an optional **POC title** and optional **status colors** (defaults: completed `#22c55e`, in progress `#f59e0b`), then choose one of three tabs. You can change the title later from **POC Settings** after import.
 
 ### Google Doc (default)
 
@@ -67,61 +67,79 @@ See `example-evaluation.md` for classic markdown. Use your Google Doc **Download
 
 Switch to **Build here** → **Start building POC…** to create workstreams, sections, and tables in a full-screen editor (add/rename workstreams, sections, columns, and rows; drag to reorder). **Save** loads the normal tracker UI.
 
-After data exists, use the hamburger menu → **POC Settings** → **POC structure** to change the framework (with a warning if completion progress already exists).
+After data exists, use **POC Settings** → **POC structure** to change the framework (with a warning if completion progress already exists).
 
-### POC sign-off sheet
+## POC Settings
 
-Hamburger → **POC sign-off sheet…** builds a printable HTML page:
+Hamburger → **POC Settings** opens a hub for:
 
-- **Summary** — overall and per-workstream completion counts (from tracker checkboxes / notes).
-- **Attestation** — default English text you can edit; stored in `state.json` under `signOff.attestationText`.
-- **Signatories** — roster in `signatoryRoster`; names are added on **import** from table columns whose headers match **Owner**, **Assignee**, **Responsible**, and similar. Use **Refresh from Owner columns** after editing criteria. Each person has free-form **role** and **organization** fields. Check who appears on the sheet; order follows the list.
-- **Incomplete POCs** — a yellow notice appears on the sheet unless everything is done. Optional checkbox blocks preview until 100% complete.
-- **Output** — **Download HTML** (`poc-sign-off.html`) or **Print / Save as PDF** from the browser.
+| Setting | What it does |
+|---------|----------------|
+| **POC title** | Header title and report/sign-off titles |
+| **Summary** | Optional paragraph shown below the progress chart (read-only on the main page; edit in the modal) |
+| **POC structure** | Workstreams, sections, columns, and criteria rows |
+| **Chart colors** | Completed / in-progress colors for chart, legend, timegraph, and notes styling |
+
+Each screen opened from here has **← POC Settings** to return to the hub.
+
+## POC sign-off sheet
+
+Hamburger → **POC sign-off sheet…** (below **View timegraph…**) builds a printable HTML page:
+
+- **Completion overview** — overall and per-workstream counts (from tracker checkboxes / notes).
+- **Attestation** — default English text you can edit in the sign-off dialog (saved with the POC).
+- **Signatories** — roster built from **Owner** / similar columns on import, plus manual entries; free-form role and organization; check who appears on the sheet.
+- **Incomplete POCs** — a yellow notice on the sheet when not 100% done; optional setting blocks preview until complete.
+- **Output** — **Download HTML** (`poc-sign-off.html`) or **Print / Save as PDF**.
 
 ## Using the tracker
 
 - **Workstream tabs** appear for each workstream that has rows.
 - **Sections** group rows under headings (default section title **General** when none is set).
-- Check **Done** on a row to record a **timestamp**; unchecking and checking again sets a new completion time. Notes can also mark items complete.
-- **POC progress by workstream** chart on the main page (default colors: **green** = completed, **amber** = in progress, neutral gray = open).
-- **Summary** — optional paragraph below the chart (**POC Settings** → **Summary**); stored in `state.json` as `summary`.
-- **Status colors** — set **Completed** and **In progress** colors in the POC title panel (before import), on the **Build here** tab, or via **POC Settings** → **Chart colors** after data exists. Saved in `state.json` with the POC; used on the chart, legend, timegraph, and notes highlighting.
-- Hamburger menu:
-  - **POC Settings** — POC title, summary, structure, and chart colors
-  - **View timegraph…** — timeline of check-offs; download completion log as JSON or CSV
-  - **Email report…** — HTML preview, copy, or download (open / in-progress items)
-  - **POC sign-off sheet…** — formal completion document with POC summary, editable attestation text, and signature lines; pick signatories from a roster (names from **Owner** / similar columns on import, or add manually); download HTML or print to PDF
-  - **Download backup (JSON)** / **Restore from backup…** — full app state (criteria + progress), for moving machines or recovering after clearing browser data
-  - **Reset all data** — clears criteria and progress
+- Check **Done** on a row to record a **timestamp**; unchecking clears the checkbox state (and auto-filled completion text in notes/status when applicable). Checking again sets a new completion time. Notes/status text can also drive completed vs in-progress styling.
+- **POC progress by workstream** chart (default: **green** = completed, **amber** = in progress, gray = open).
+- **Summary** paragraph below the chart when text exists (edit via **POC Settings** → **Summary**).
+- Page footer shows **Saved** time and sync status (**Saved and synced** when using `npm start` or Docker).
+
+### Hamburger menu (after data exists)
+
+| Item | Purpose |
+|------|---------|
+| **Show all rows** / **Hide all completed** | Table visibility |
+| **Email report…** | HTML preview, copy, or download (open / in-progress items) |
+| **POC Settings** | Title, summary, structure, chart colors |
+| **View timegraph…** | Timeline of check-offs; download completion log JSON or CSV |
+| **POC sign-off sheet…** | Formal sign-off HTML / print |
+| **Download backup (JSON)** / **Restore from backup…** | Full state for another machine or after clearing browser data |
+| **Reset all data** | Clears criteria and progress (top of menu) |
 
 ## Persistence and backups
 
 | Mechanism | What it does |
 |-----------|----------------|
-| **Browser `localStorage`** | Always used while you work |
-| **`state.json`** | Written when using `npm start` or Docker (`PUT /api/state`); includes criteria, progress, workstreams, `statusColors`, `signatoryRoster`, and `signOff` (attestation text and options); reloaded on next visit if the browser cache was cleared |
-| **`state.json.backup`** | Server copies `state.json` over this file every **5 minutes** (same folder as `state.json`) |
-| **`poc-tracker-backup.json`** | Manual export from the menu (same payload shape as `state.json`) |
+| **Browser `localStorage`** | Cache while you work |
+| **`state.json`** | Server file when using `npm start` or Docker — criteria, progress, workstreams, `title`, `summary`, `statusColors`, `signatoryRoster`, `signOff`, etc. |
+| **`state.json.backup`** | Server copy every **5 minutes** |
+| **`poc-tracker-backup.json`** | Manual export from the menu (same shape as `state.json`) |
 
-`state.json` and `state.json.backup` are **gitignored**. Each clone gets a fresh `state.json` from `state.json.example` on `npm install` or server startup.
+`state.json` and `state.json.backup` are **gitignored**. `npm install` or server startup creates `state.json` from `state.json.example` only if the file is missing.
 
-To restore from `state.json.backup` on the server: stop writes if needed, then `cp state.json.backup state.json` in `DATA_DIR` (or `/data` in Docker) and refresh the app.
+To restore from `state.json.backup` on the server: stop writes if needed, then `cp state.json.backup state.json` in `DATA_DIR` (or `/data` in Docker) and refresh.
 
-The timegraph **Download JSON/CSV** files are completion **logs only**; use **Download backup (JSON)** or `state.json` for a full restore.
+Timegraph **JSON/CSV** exports are completion **logs only**; use **Download backup (JSON)** or a full `state.json` for restore.
 
 **Restore troubleshooting**
 
-- Dropping a file named `state.json` in the project folder only loads on **`npm start`** (or Docker), not when opening the HTML as `file://`. The app merges server `state.json` with browser `localStorage`; if the file has more criteria rows than the cache, the file wins.
-- A valid full backup must have **non-empty `sections.*.rows`** (and usually `progress`). A fresh `state.json` from `state.json.example` looks correct but has **zero rows** — restoring it shows an empty POC.
-- Prefer **`poc-tracker-backup.json`** (menu export) or **`state.json.backup`** over a hand-edited empty `state.json`.
+- Replacing `state.json` on disk only applies with **`npm start`** or Docker, not `file://`. The app merges server data with `localStorage`; the copy with more criteria rows usually wins.
+- A valid backup must have **non-empty `sections.*.rows`**. An empty template restores as an empty POC.
+- Prefer **menu backup** or **`state.json.backup`** over an empty hand-edited file.
 
 ## Project layout
 
 | File | Purpose |
 |------|---------|
 | `virtualization-kubernetes-tracker.html` | App UI and logic |
-| `server.mjs` | Static server, `GET/PUT /api/state`, `GET /state.json`, `POST /api/import-google-doc`, periodic `state.json` backup |
+| `server.mjs` | Static server, `GET/PUT /api/state`, `GET /state.json`, `POST /api/import-google-doc`, periodic backup |
 | `scripts/ensure-state.mjs` | Creates `state.json` when missing |
 | `example-evaluation.md` | Sample markdown import |
 | `Dockerfile` / `docker-compose.yml` | Container deployment |
