@@ -169,6 +169,13 @@
       font-size: 0.72rem;
     }
 
+    #customerOpenSelect {
+      width: 100%;
+      margin: 0.75rem 0 0;
+      padding: 0.45rem 0.55rem;
+      font: inherit;
+    }
+
     .app-menu-divider {
       height: 1px;
       margin: 0.25rem 0.35rem;
@@ -1234,7 +1241,8 @@
             <div class="app-menu-divider" role="separator"></div>
             <button type="button" id="btnDownloadBackup">Download backup (JSON)</button>
             <button type="button" id="btnRestoreBackup">Restore from backup…</button>
-            <p class="app-menu-help">After clearing browser data, use <strong>Restore from backup</strong> or reopen the app with <code>npm start</code> if you were syncing to the server.</p>
+            <button type="button" id="btnOpenCustomer">Open a saved customer…</button>
+            <p class="app-menu-help">Each customer is saved in the customers folder from the POC title. Use <strong>Open a saved customer</strong> to switch. Upload that folder to GitHub when another computer should see it. After clearing browser data, use <strong>Restore from backup</strong> or reopen with <code>npm start</code>.</p>
           </nav>
         </div>
       </div>
@@ -1429,6 +1437,20 @@
         <div class="report-modal-actions">
           <button type="button" class="primary" id="btnSummaryModalSave">Save</button>
           <button type="button" id="btnSummaryModalCancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="customerOpenModal" class="report-modal" hidden>
+      <div class="report-modal-backdrop" id="customerOpenBackdrop"></div>
+      <div class="report-modal-panel" role="dialog" aria-labelledby="customerOpenTitle" aria-modal="true">
+        <h2 id="customerOpenTitle">Open a saved customer</h2>
+        <p>This replaces the checklist on screen. Other saved customers stay in the customers folder.</p>
+        <label for="customerOpenSelect">Saved customers</label>
+        <select id="customerOpenSelect"></select>
+        <div class="report-modal-actions">
+          <button type="button" class="primary" id="btnCustomerOpenConfirm">Open</button>
+          <button type="button" id="btnCustomerOpenCancel">Cancel</button>
         </div>
       </div>
     </div>
@@ -2413,7 +2435,14 @@
           body,
         });
         if (!res.ok) throw new Error("HTTP " + res.status);
+        const saved = await res.json().catch(() => ({}));
         setSyncStatus("synced");
+        if (saved.customerFile) {
+          const savedEl = document.getElementById("lastSaved");
+          if (savedEl) {
+            savedEl.textContent = "Saved " + new Date().toLocaleString() + " (" + saved.customerFile + ")";
+          }
+        }
       } catch (_) {
         setSyncStatus("error");
       }
@@ -5357,6 +5386,65 @@
 
     document.getElementById("btnChartColorsClose").addEventListener("click", closeChartColorsModal);
     document.getElementById("chartColorsModalBackdrop").addEventListener("click", closeChartColorsModal);
+
+    function closeCustomerOpenModal() {
+      document.getElementById("customerOpenModal").hidden = true;
+    }
+
+    async function openCustomerPicker() {
+      closeAppMenu();
+      let list;
+      try {
+        const res = await fetch("api/customers");
+        if (!res.ok) throw new Error("Could not read saved customers.");
+        list = await res.json();
+      } catch (err) {
+        alert(err.message || "Could not read saved customers. Use npm start so the app can save files.");
+        return;
+      }
+      if (!Array.isArray(list) || list.length === 0) {
+        alert(
+          "No saved customers yet. Set the POC title to the customer name, then add the checklist. A copy is saved in the customers folder."
+        );
+        return;
+      }
+      const select = document.getElementById("customerOpenSelect");
+      select.replaceChildren();
+      for (const item of list) {
+        const opt = document.createElement("option");
+        opt.value = item.file;
+        const when = item.updatedAt ? " · " + new Date(item.updatedAt).toLocaleString() : "";
+        opt.textContent = (item.title || item.file) + when;
+        select.appendChild(opt);
+      }
+      document.getElementById("customerOpenModal").hidden = false;
+    }
+
+    async function confirmOpenCustomer() {
+      const file = document.getElementById("customerOpenSelect").value;
+      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*\.json$/.test(file)) {
+        alert("Choose a saved customer.");
+        return;
+      }
+      try {
+        const res = await fetch("api/customers/" + encodeURIComponent(file));
+        if (!res.ok) throw new Error("Could not open that customer.");
+        const parsed = await res.json();
+        applyRestoreFromBackup(parsed);
+        closeCustomerOpenModal();
+      } catch (err) {
+        alert(err.message || "Could not open that customer.");
+      }
+    }
+
+    document.getElementById("btnOpenCustomer").addEventListener("click", () => {
+      void openCustomerPicker();
+    });
+    document.getElementById("btnCustomerOpenConfirm").addEventListener("click", () => {
+      void confirmOpenCustomer();
+    });
+    document.getElementById("btnCustomerOpenCancel").addEventListener("click", closeCustomerOpenModal);
+    document.getElementById("customerOpenBackdrop").addEventListener("click", closeCustomerOpenModal);
 
     document.getElementById("btnDownloadBackup").addEventListener("click", () => {
       closeAppMenu();

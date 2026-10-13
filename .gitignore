@@ -1,6 +1,8 @@
 node_modules/
+# The checklist on screen stays on this computer.
 state.json
 state.json.backup
+# Named copies in customers/*.json are the customer trackers to keep in git.
 .DS_Store
 *.log
 .env
