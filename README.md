@@ -67,7 +67,7 @@ See `example-evaluation.md` for classic markdown. Use your Google Doc **Download
 
 Switch to **Build here** → **Start building POC…** to create workstreams, sections, and tables in a full-screen editor (add/rename workstreams, sections, columns, and rows; drag to reorder). **Save** loads the normal tracker UI.
 
-After data exists, use the hamburger menu → **Edit POC structure…** to change the framework (with a warning if completion progress already exists).
+After data exists, use the hamburger menu → **POC Settings** → **POC structure** to change the framework (with a warning if completion progress already exists).
 
 ### POC sign-off sheet
 
@@ -85,9 +85,10 @@ Hamburger → **POC sign-off sheet…** builds a printable HTML page:
 - **Sections** group rows under headings (default section title **General** when none is set).
 - Check **Done** on a row to record a **timestamp**; unchecking and checking again sets a new completion time. Notes can also mark items complete.
 - **POC progress by workstream** chart on the main page (default colors: **green** = completed, **amber** = in progress, neutral gray = open).
-- **Status colors** — set **Completed** and **In progress** colors in the POC title panel (before import), on the **Build here** tab, or via hamburger **Chart colors…** after data exists. Saved in `state.json` with the POC; used on the chart, legend, timegraph, and notes highlighting.
+- **Summary** — optional paragraph below the chart (**POC Settings** → **Summary**); stored in `state.json` as `summary`.
+- **Status colors** — set **Completed** and **In progress** colors in the POC title panel (before import), on the **Build here** tab, or via **POC Settings** → **Chart colors** after data exists. Saved in `state.json` with the POC; used on the chart, legend, timegraph, and notes highlighting.
 - Hamburger menu:
-  - **Chart colors…** — change completed / in-progress colors after import
+  - **POC Settings** — POC title, summary, structure, and chart colors
   - **View timegraph…** — timeline of check-offs; download completion log as JSON or CSV
   - **Email report…** — HTML preview, copy, or download (open / in-progress items)
   - **POC sign-off sheet…** — formal completion document with POC summary, editable attestation text, and signature lines; pick signatories from a roster (names from **Owner** / similar columns on import, or add manually); download HTML or print to PDF

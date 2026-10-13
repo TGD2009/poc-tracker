@@ -181,6 +181,52 @@
       text-align: left;
     }
 
+    .poc-settings-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .poc-settings-actions button {
+      width: 100%;
+      text-align: left;
+      font: inherit;
+      font-size: 0.92rem;
+      padding: 0.5rem 0.65rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface2);
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .poc-settings-actions button:hover {
+      background: var(--rh-gray-10);
+      border-color: var(--rh-gray-30);
+    }
+
+    .modal-settings-back {
+      display: block;
+      margin: 0 0 0.65rem;
+      padding: 0.25rem 0;
+      border: none;
+      background: none;
+      font: inherit;
+      font-size: 0.88rem;
+      color: var(--rh-blue-bright, #0072ce);
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .modal-settings-back:hover {
+      text-decoration: underline;
+    }
+
+    .modal-settings-back[hidden] {
+      display: none;
+    }
+
     .page-footer {
       margin-top: 2rem;
       padding-top: 1rem;
@@ -288,6 +334,21 @@
       font-size: 1rem;
       font-weight: 600;
       color: var(--muted);
+    }
+
+    .poc-summary-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .poc-summary-display {
+      font-size: 0.95rem;
+      line-height: 1.55;
+      color: var(--text);
+      white-space: pre-wrap;
     }
 
     .chart-canvas-wrap {
@@ -1167,14 +1228,13 @@
             <button type="button" id="btnShowAll" data-requires-data hidden>Show all rows</button>
             <button type="button" id="btnHideCompleted" data-requires-data hidden>Hide all completed</button>
             <button type="button" id="btnEmailReport" data-requires-data hidden>Email report…</button>
-            <button type="button" id="btnSignOffSheet" data-requires-data hidden>POC sign-off sheet…</button>
-            <button type="button" id="btnEditStructure" data-requires-data hidden>Edit POC structure…</button>
-            <button type="button" id="btnChartColors" data-requires-data hidden>Chart colors…</button>
+            <button type="button" id="btnPocSettings" data-requires-data hidden>POC Settings</button>
             <button type="button" id="btnViewTimegraph" data-requires-data hidden>View timegraph…</button>
+            <button type="button" id="btnSignOffSheet" data-requires-data hidden>POC sign-off sheet…</button>
             <div class="app-menu-divider" role="separator"></div>
             <button type="button" id="btnDownloadBackup">Download backup (JSON)</button>
             <button type="button" id="btnRestoreBackup">Restore from backup…</button>
-            <p class="app-menu-help">After clearing browser data, use <strong>Restore from backup</strong> or reopen the app with <code>npm start</code> if <code>state.json</code> was synced on the server.</p>
+            <p class="app-menu-help">After clearing browser data, use <strong>Restore from backup</strong> or reopen the app with <code>npm start</code> if you were syncing to the server.</p>
           </nav>
         </div>
       </div>
@@ -1294,9 +1354,14 @@
       </div>
     </div>
 
+    <div id="pocSummaryBlock" class="poc-summary-block" hidden>
+      <div id="pocSummaryDisplay" class="poc-summary-display"></div>
+    </div>
+
     <div id="chartColorsModal" class="report-modal" hidden>
       <div class="report-modal-backdrop" id="chartColorsModalBackdrop"></div>
       <div class="report-modal-panel" role="dialog" aria-labelledby="chartColorsModalTitle" aria-modal="true">
+        <button type="button" class="modal-settings-back" data-poc-settings-back hidden>← POC Settings</button>
         <h2 id="chartColorsModalTitle">Chart colors</h2>
         <p class="import-hint" style="margin-top:0">
           Applies to the progress chart, legend, timegraph, and notes styling for completed vs in-progress text. Open items stay neutral gray on the chart.
@@ -1314,6 +1379,56 @@
         </fieldset>
         <div class="report-modal-actions">
           <button type="button" class="primary" id="btnChartColorsClose">Done</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="pocSettingsModal" class="report-modal" hidden>
+      <div class="report-modal-backdrop" id="pocSettingsModalBackdrop"></div>
+      <div class="report-modal-panel" role="dialog" aria-labelledby="pocSettingsModalTitle" aria-modal="true">
+        <h2 id="pocSettingsModalTitle">POC Settings</h2>
+        <div class="poc-settings-actions">
+          <button type="button" id="btnSettingsPocTitle">POC title</button>
+          <button type="button" id="btnSettingsSummary">Summary</button>
+          <button type="button" id="btnSettingsStructure">POC structure</button>
+          <button type="button" id="btnSettingsChartColors">Chart colors</button>
+        </div>
+        <div class="report-modal-actions">
+          <button type="button" id="btnPocSettingsClose">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="titleModal" class="report-modal" hidden>
+      <div class="report-modal-backdrop" id="titleModalBackdrop"></div>
+      <div class="report-modal-panel" role="dialog" aria-labelledby="titleModalTitle" aria-modal="true">
+        <button type="button" class="modal-settings-back" data-poc-settings-back hidden>← POC Settings</button>
+        <h2 id="titleModalTitle">Edit POC title</h2>
+        <p class="import-hint" style="margin-top:0">
+          Shown in the page header, email reports, and sign-off sheet.
+        </p>
+        <label class="signoff-field" for="pocTitleEditInput">
+          <span>POC title</span>
+          <input type="text" id="pocTitleEditInput" autocomplete="off" />
+        </label>
+        <div class="report-modal-actions">
+          <button type="button" class="primary" id="btnTitleModalSave">Save</button>
+          <button type="button" id="btnTitleModalCancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="summaryModal" class="report-modal" hidden>
+      <div class="report-modal-backdrop" id="summaryModalBackdrop"></div>
+      <div class="report-modal-panel" role="dialog" aria-labelledby="summaryModalTitle" aria-modal="true">
+        <button type="button" class="modal-settings-back" data-poc-settings-back hidden>← POC Settings</button>
+        <h2 id="summaryModalTitle">Summary</h2>
+        <label class="signoff-field" for="pocSummaryEditInput">
+          <textarea id="pocSummaryEditInput" rows="6" spellcheck="true"></textarea>
+        </label>
+        <div class="report-modal-actions">
+          <button type="button" class="primary" id="btnSummaryModalSave">Save</button>
+          <button type="button" id="btnSummaryModalCancel">Cancel</button>
         </div>
       </div>
     </div>
@@ -1364,7 +1479,10 @@
       <div class="report-modal-backdrop" id="structureEditorBackdrop"></div>
       <div class="report-modal-panel structure-editor-panel" role="dialog" aria-labelledby="structureEditorTitle" aria-modal="true">
         <div class="structure-editor-header">
-          <h2 id="structureEditorTitle">POC structure</h2>
+          <div>
+            <button type="button" class="modal-settings-back" data-poc-settings-back hidden>← POC Settings</button>
+            <h2 id="structureEditorTitle">POC structure</h2>
+          </div>
           <div class="report-modal-actions" style="margin:0">
             <button type="button" class="primary" id="btnStructureSave">Save</button>
             <button type="button" id="btnStructureCancel">Cancel</button>
@@ -1436,7 +1554,6 @@
           <span>Attestation text</span>
           <textarea id="signOffAttestation" spellcheck="true"></textarea>
         </label>
-        <p class="signoff-field-hint">Edit the wording above; it is saved with this POC in <code>state.json</code>.</p>
         <label class="signoff-check-option">
           <input type="checkbox" id="signOffBlockIncomplete" />
           <span>Only allow sign-off when all criteria are completed</span>
@@ -1546,7 +1663,30 @@
         statusColors: { ...DEFAULT_STATUS_COLORS },
         signatoryRoster: [],
         signOff: defaultSignOffSettings(),
+        summary: "",
       };
+    }
+
+    function ensureSummaryState() {
+      let changed = false;
+      if (state.summary == null && state.abstract != null) {
+        state.summary = state.abstract;
+        delete state.abstract;
+        changed = true;
+      }
+      if (state.summary == null) {
+        state.summary = "";
+        changed = true;
+      }
+      if (state.abstract != null) {
+        delete state.abstract;
+        changed = true;
+      }
+      return changed;
+    }
+
+    function summaryText() {
+      return String(state.summary ?? "").trim();
     }
 
     function defaultStatusColors() {
@@ -1649,6 +1789,111 @@
 
     function closeChartColorsModal() {
       document.getElementById("chartColorsModal").hidden = true;
+      clearPocSettingsReturn();
+    }
+
+    function openPocSettingsModal() {
+      document.getElementById("pocSettingsModal").hidden = false;
+    }
+
+    function closePocSettingsModal() {
+      document.getElementById("pocSettingsModal").hidden = true;
+    }
+
+    function setPocSettingsBackVisible(visible) {
+      document.querySelectorAll("[data-poc-settings-back]").forEach((el) => {
+        el.hidden = !visible;
+      });
+    }
+
+    function clearPocSettingsReturn() {
+      setPocSettingsBackVisible(false);
+    }
+
+    function returnToPocSettings() {
+      document.getElementById("titleModal").hidden = true;
+      document.getElementById("summaryModal").hidden = true;
+      document.getElementById("chartColorsModal").hidden = true;
+      if (!document.getElementById("structureEditorModal").hidden) {
+        document.getElementById("structureEditorModal").hidden = true;
+        structureEditorDraft = null;
+        structureEditorActiveWs = null;
+      }
+      setPocSettingsBackVisible(false);
+      openPocSettingsModal();
+    }
+
+    function openFromPocSettings(opener) {
+      closePocSettingsModal();
+      setPocSettingsBackVisible(true);
+      opener();
+    }
+
+    function syncPocTitleInputsFromState() {
+      const title = state.title || defaultState().title;
+      const preImport = document.getElementById("pocTitleInput");
+      if (preImport) preImport.value = title;
+      const edit = document.getElementById("pocTitleEditInput");
+      if (edit) edit.value = title;
+    }
+
+    function openTitleModal() {
+      syncPocTitleInputsFromState();
+      document.getElementById("titleModal").hidden = false;
+      const input = document.getElementById("pocTitleEditInput");
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }
+
+    function closeTitleModal() {
+      document.getElementById("titleModal").hidden = true;
+      clearPocSettingsReturn();
+    }
+
+    function commitPocTitleEdit() {
+      const input = document.getElementById("pocTitleEditInput");
+      const val = input?.value.trim() || "";
+      state.title = val || defaultState().title;
+      document.getElementById("pageTitle").textContent = state.title;
+      syncPocTitleInputsFromState();
+      saveState();
+      closeTitleModal();
+    }
+
+    function syncSummaryDisplayFromState() {
+      const block = document.getElementById("pocSummaryBlock");
+      const display = document.getElementById("pocSummaryDisplay");
+      if (!block || !display) return;
+      const text = summaryText();
+      if (!hasData() || !text) {
+        block.hidden = true;
+        display.textContent = "";
+        return;
+      }
+      block.hidden = false;
+      display.textContent = text;
+    }
+
+    function openSummaryModal() {
+      const input = document.getElementById("pocSummaryEditInput");
+      if (input) input.value = state.summary ?? "";
+      document.getElementById("summaryModal").hidden = false;
+      if (input) input.focus();
+    }
+
+    function closeSummaryModal() {
+      document.getElementById("summaryModal").hidden = true;
+      clearPocSettingsReturn();
+    }
+
+    function commitSummaryEdit() {
+      const input = document.getElementById("pocSummaryEditInput");
+      state.summary = input ? input.value : "";
+      syncSummaryDisplayFromState();
+      saveState();
+      closeSummaryModal();
     }
 
     function generateRowUid() {
@@ -2130,6 +2375,7 @@
         statusColors: getStatusColors(),
         signatoryRoster: state.signatoryRoster || [],
         signOff: state.signOff || defaultSignOffSettings(),
+        summary: state.summary ?? "",
       };
     }
 
@@ -2137,11 +2383,11 @@
       const el = document.getElementById("jsonSyncStatus");
       if (!el) return;
       const labels = {
-        synced: "state.json synced",
-        saving: "Saving state.json…",
+        synced: "Saved and synced",
+        saving: "Saving…",
         pending: "Pending save…",
-        local: "state.json read-only (use npm start for auto-save)",
-        error: "state.json save failed — using browser cache",
+        local: "Local only (use npm start to sync)",
+        error: "Save failed — using browser cache",
       };
       el.textContent = labels[mode] || "";
     }
@@ -2190,7 +2436,12 @@
 
     async function boot() {
       state = await loadStateAsync();
-      applyEmbeddedBranding(state);
+      if (!String(state.title || "").trim()) {
+        applyEmbeddedBranding(state);
+      }
+      syncPocTitleInputsFromState();
+      if (ensureSummaryState()) saveState();
+      syncSummaryDisplayFromState();
       setUiVisibility();
       jsonSyncCapable = await probeJsonSyncApi();
       if (ensureStatusColors()) saveState();
@@ -2604,8 +2855,20 @@
 
     function isRowMarkedComplete(sec, index, row) {
       const id = rowId(sec, index);
-      const p = getProgress(id);
-      return p.completed || isRowDocComplete(row, sec);
+      const tracked = state.progress[id];
+      if (tracked) {
+        return Boolean(tracked.completed);
+      }
+      return isRowDocComplete(row, sec);
+    }
+
+    function clearDocCompletionFields(sec, row) {
+      notesFieldKeysForSection(sec).forEach((key) => {
+        row[key] = "";
+      });
+      ["notes", "completed", "status"].forEach((key) => {
+        if (key in row) row[key] = "";
+      });
     }
 
     function updateNotesDateHint(td, id) {
@@ -2718,6 +2981,7 @@
       const importBlock = document.getElementById("importSourceBlock");
       if (progress) progress.hidden = !show;
       if (importBlock) importBlock.hidden = show;
+      syncSummaryDisplayFromState();
     }
 
     function countStats() {
@@ -2728,8 +2992,7 @@
           total++;
           const id = rowId(sec, i);
           const p = getProgress(id);
-          const completed = p.completed || isRowDocComplete(row, sec);
-          if (completed) done++;
+          if (isRowMarkedComplete(sec, i, row)) done++;
         });
       });
       return { total, done, open: total - done, pct: total ? Math.round((done / total) * 100) : 0 };
@@ -2773,7 +3036,7 @@
     function rowStatusCategory(sec, row, index) {
       const id = rowId(sec, index);
       const p = getProgress(id);
-      if (p.completed || isRowDocComplete(row, sec)) return "completed";
+      if (isRowMarkedComplete(sec, index, row)) return "completed";
       if (docCompletedValue(row, sec)) return "inProgress";
       return "open";
     }
@@ -2952,9 +3215,7 @@
 
     function appendDataRow(sec, rowIndex, row, displayHeaders, tbody) {
       const id = rowId(sec, rowIndex);
-      const p = getProgress(id);
-      const docDone = isRowDocComplete(row, sec);
-      const completed = p.completed || docDone;
+      const completed = isRowMarkedComplete(sec, rowIndex, row);
       const hide = (globalHideCompleted || panelHideCompleted) && completed;
 
       const tr = document.createElement("tr");
@@ -2976,6 +3237,7 @@
           markRowCompleted(id);
         } else {
           markRowReopened(id);
+          clearDocCompletionFields(sec, row);
         }
         saveState();
         refreshRowDoneState(tr, sec, rowIndex, cb);
@@ -3080,9 +3342,7 @@
 
     function refreshRowDoneState(tr, sec, index, checkbox) {
       const row = state.sections[sec].rows[index];
-      const id = rowId(sec, index);
-      const p = getProgress(id);
-      const completed = p.completed || isRowDocComplete(row, sec);
+      const completed = isRowMarkedComplete(sec, index, row);
       checkbox.checked = completed;
       tr.classList.toggle("row-done", completed);
       const hide = (globalHideCompleted || panelHideCompleted) && completed;
@@ -3094,9 +3354,7 @@
       let visible = 0;
       let doneCount = 0;
       section.rows.forEach((row, i) => {
-        const id = rowId(sec, i);
-        const p = getProgress(id);
-        const completed = p.completed || isRowDocComplete(row, sec);
+        const completed = isRowMarkedComplete(sec, i, row);
         if (completed) doneCount++;
         const hide = (globalHideCompleted || panelHideCompleted) && completed;
         if (!hide) visible++;
@@ -3399,7 +3657,7 @@
       const rowCount = trackerDataScore(parsed);
       if (rowCount === 0) {
         throw new Error(
-          "That backup has no criteria rows (empty sections). Use poc-tracker-backup.json or state.json.backup from when you had data, not an empty state.json."
+          "That backup has no criteria rows (empty sections). Use poc-tracker-backup.json or an automatic server backup from when you had data."
         );
       }
       state = hydrateFromRemote(parsed);
@@ -3410,6 +3668,7 @@
       normalizeTrackerSchema();
       ensureStatusColors();
       ensureSignOffState();
+      ensureSummaryState();
       applyStatusColorsFromState();
       syncStatusColorInputs();
       const withData = workstreamsWithData();
@@ -3756,6 +4015,8 @@
 
     function renderAll() {
       document.getElementById("pageTitle").textContent = state.title || defaultState().title;
+      syncPocTitleInputsFromState();
+      syncSummaryDisplayFromState();
       const sub = document.getElementById("pageSubtitle");
       if (sub) {
         const showSub = !hasData() && Boolean(String(state.subtitle || "").trim());
@@ -4593,6 +4854,7 @@
       document.getElementById("structureEditorModal").hidden = true;
       structureEditorDraft = null;
       structureEditorActiveWs = null;
+      clearPocSettingsReturn();
     }
 
     function renderStructureEditor() {
@@ -5046,14 +5308,46 @@
       if (lastInput) lastInput.focus();
     });
 
-    document.getElementById("btnEditStructure").addEventListener("click", () => {
+    document.getElementById("btnPocSettings").addEventListener("click", () => {
       closeAppMenu();
-      openStructureEditor({ emptyStart: false });
+      openPocSettingsModal();
     });
 
-    document.getElementById("btnChartColors").addEventListener("click", () => {
-      closeAppMenu();
-      openChartColorsModal();
+    document.getElementById("btnPocSettingsClose").addEventListener("click", closePocSettingsModal);
+    document.getElementById("pocSettingsModalBackdrop").addEventListener("click", closePocSettingsModal);
+
+    document.getElementById("btnSettingsPocTitle").addEventListener("click", () => {
+      openFromPocSettings(() => openTitleModal());
+    });
+
+    document.getElementById("btnSettingsSummary").addEventListener("click", () => {
+      openFromPocSettings(() => openSummaryModal());
+    });
+
+    document.getElementById("btnSettingsStructure").addEventListener("click", () => {
+      openFromPocSettings(() => openStructureEditor({ emptyStart: false }));
+    });
+
+    document.getElementById("btnSettingsChartColors").addEventListener("click", () => {
+      openFromPocSettings(() => openChartColorsModal());
+    });
+
+    document.querySelectorAll("[data-poc-settings-back]").forEach((btn) => {
+      btn.addEventListener("click", returnToPocSettings);
+    });
+
+    document.getElementById("btnSummaryModalSave").addEventListener("click", commitSummaryEdit);
+    document.getElementById("btnSummaryModalCancel").addEventListener("click", closeSummaryModal);
+    document.getElementById("summaryModalBackdrop").addEventListener("click", closeSummaryModal);
+
+    document.getElementById("btnTitleModalSave").addEventListener("click", commitPocTitleEdit);
+    document.getElementById("btnTitleModalCancel").addEventListener("click", closeTitleModal);
+    document.getElementById("titleModalBackdrop").addEventListener("click", closeTitleModal);
+    document.getElementById("pocTitleEditInput").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        commitPocTitleEdit();
+      }
     });
 
     document.getElementById("btnViewTimegraph").addEventListener("click", () => {
@@ -5084,7 +5378,7 @@
           const parsed = JSON.parse(String(reader.result || ""));
           if (
             !confirm(
-              "Restore this backup? It will replace all criteria, checkboxes, and notes in this browser (and sync to state.json if the server is running)."
+              "Restore this backup? It will replace all criteria, checkboxes, and notes in this browser."
             )
           ) {
             return;
@@ -5167,6 +5461,9 @@
         document.getElementById("structureWarnModal").hidden = true;
         structureSaveAfterWarn = false;
       }       else if (!document.getElementById("workstreamApproveModal").hidden) closeWorkstreamApproveModal();
+      else if (!document.getElementById("pocSettingsModal").hidden) closePocSettingsModal();
+      else if (!document.getElementById("titleModal").hidden) closeTitleModal();
+      else if (!document.getElementById("summaryModal").hidden) closeSummaryModal();
       else if (!document.getElementById("chartColorsModal").hidden) closeChartColorsModal();
       else if (!document.getElementById("timegraphModal").hidden) closeTimegraphModal();
       else if (!document.getElementById("reportModal").hidden) closeReportModal();
